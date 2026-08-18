@@ -1,2 +1,2 @@
-# STAD_dimensionality_reduction
+# TCGA-STAD
 Streamlit visualization of stomach adenocarcinoma (STAD) data

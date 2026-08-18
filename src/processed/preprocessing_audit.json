@@ -1,0 +1,56 @@
+{
+  "config": {
+    "primary_sample_type": "01",
+    "min_total_expression": 200.0,
+    "min_log_variance": 0.7,
+    "variance_ddof": 1,
+    "floor_negative_expression": true,
+    "metadata_missing_tokens": [
+      "[Not Available]",
+      "[Not Evaluated]",
+      "[Unknown]",
+      "[Discrepancy]"
+    ]
+  },
+  "raw": {
+    "samples": 447,
+    "gene_features": 20531,
+    "metadata_patients": 415
+  },
+  "sample_filtering": {
+    "primary_sample_type": "01",
+    "primary_tumor_samples": 412,
+    "primary_tumor_patients": 412,
+    "metadata_matches": 412
+  },
+  "gene_filtering": {
+    "unannotated_removed": 29,
+    "annotated_genes": 20502,
+    "genes_with_missing_values_removed": 3753,
+    "complete_genes": 16749,
+    "low_expression_removed": 99,
+    "expression_matrix_genes": 16650,
+    "low_variance_removed": 8456,
+    "dimred_matrix_genes": 8194
+  },
+  "negative_expression_qc": {
+    "negative_values_before_flooring": 133916,
+    "genes_with_negative_values": 2609,
+    "samples_with_negative_values": 409,
+    "percent_negative_values_among_complete_genes": 1.9406462173948076
+  },
+  "outputs": {
+    "X_expression_shape": [
+      412,
+      16650
+    ],
+    "X_dimred_shape": [
+      412,
+      8194
+    ],
+    "sample_info_shape": [
+      412,
+      22
+    ]
+  }
+}
