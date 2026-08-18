@@ -1,0 +1,57 @@
+{
+  "input": {
+    "samples": 412,
+    "genes": 8194,
+    "pre_pca_enabled": false,
+    "pre_pca_components": 0,
+    "pre_pca_variance_percent": null
+  },
+  "umap": {
+    "package_version": "0.5.12",
+    "n_components": 2,
+    "n_neighbors": 15,
+    "min_dist": 0.1,
+    "metric": "euclidean",
+    "init": "spectral",
+    "n_epochs_requested": null,
+    "random_state": 42,
+    "n_jobs_requested": 1,
+    "trustworthiness_k15": 0.8588788778795517,
+    "mean_jaccard_k15": 0.2331618047671985,
+    "trustworthiness_k30": 0.8415349872183737,
+    "mean_jaccard_k30": 0.26375305414948874
+  },
+  "sensitivity": {
+    "n_neighbors": [
+      5,
+      15,
+      30,
+      50
+    ],
+    "min_dist": [
+      0.0,
+      0.1,
+      0.5,
+      1.0
+    ],
+    "metrics": [
+      "euclidean",
+      "cosine",
+      "canberra"
+    ],
+    "neighborhood_k": [
+      15,
+      30
+    ]
+  },
+  "outputs": {
+    "metadata_overlays": [
+      "center_code",
+      "gender",
+      "race",
+      "ajcc_pathologic_tumor_stage",
+      "histological_grade",
+      "vital_status"
+    ]
+  }
+}
