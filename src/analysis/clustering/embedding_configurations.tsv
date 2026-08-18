@@ -1,0 +1,64 @@
+method	method_key	configuration_id	configuration_label	is_primary	source_file	metric	perplexity	n_neighbors	min_dist	pre_pca_components
+MDS	mds	mds__primary	primary	True	analysis/mds/mds_scores.tsv.gz					
+PCA	pca	pca__primary	primary	True	analysis/pca/pca_scores.tsv.gz					
+t-SNE	tsne	tsne__primary	primary	True	analysis/tsne/tsne_scores.tsv.gz					
+t-SNE	tsne	tsne__metric-correlation__perplexity-15	metric=correlation, perplexity=15	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	correlation	15.0			
+t-SNE	tsne	tsne__metric-correlation__perplexity-30	metric=correlation, perplexity=30	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	correlation	30.0			
+t-SNE	tsne	tsne__metric-correlation__perplexity-5	metric=correlation, perplexity=5	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	correlation	5.0			
+t-SNE	tsne	tsne__metric-correlation__perplexity-50	metric=correlation, perplexity=50	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	correlation	50.0			
+t-SNE	tsne	tsne__metric-cosine__perplexity-15	metric=cosine, perplexity=15	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	cosine	15.0			
+t-SNE	tsne	tsne__metric-cosine__perplexity-30	metric=cosine, perplexity=30	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	cosine	30.0			
+t-SNE	tsne	tsne__metric-cosine__perplexity-5	metric=cosine, perplexity=5	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	cosine	5.0			
+t-SNE	tsne	tsne__metric-cosine__perplexity-50	metric=cosine, perplexity=50	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	cosine	50.0			
+t-SNE	tsne	tsne__metric-euclidean__perplexity-15	metric=euclidean, perplexity=15	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	euclidean	15.0			
+t-SNE	tsne	tsne__metric-euclidean__perplexity-30	metric=euclidean, perplexity=30	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	euclidean	30.0			
+t-SNE	tsne	tsne__metric-euclidean__perplexity-5	metric=euclidean, perplexity=5	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	euclidean	5.0			
+t-SNE	tsne	tsne__metric-euclidean__perplexity-50	metric=euclidean, perplexity=50	False	analysis/tsne/tsne_sensitivity_scores.tsv.gz	euclidean	50.0			
+UMAP	umap	umap__metric-euclidean__nn-15__mindist-0p1	metric=euclidean, n_neighbors=15, min_dist=0.1	True	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		15.0	0.1	
+UMAP	umap	umap__metric-canberra__nn-15__mindist-0	metric=canberra, n_neighbors=15, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		15.0	0.0	
+UMAP	umap	umap__metric-canberra__nn-15__mindist-0p1	metric=canberra, n_neighbors=15, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		15.0	0.1	
+UMAP	umap	umap__metric-canberra__nn-15__mindist-0p5	metric=canberra, n_neighbors=15, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		15.0	0.5	
+UMAP	umap	umap__metric-canberra__nn-15__mindist-1	metric=canberra, n_neighbors=15, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		15.0	1.0	
+UMAP	umap	umap__metric-canberra__nn-30__mindist-0	metric=canberra, n_neighbors=30, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		30.0	0.0	
+UMAP	umap	umap__metric-canberra__nn-30__mindist-0p1	metric=canberra, n_neighbors=30, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		30.0	0.1	
+UMAP	umap	umap__metric-canberra__nn-30__mindist-0p5	metric=canberra, n_neighbors=30, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		30.0	0.5	
+UMAP	umap	umap__metric-canberra__nn-30__mindist-1	metric=canberra, n_neighbors=30, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		30.0	1.0	
+UMAP	umap	umap__metric-canberra__nn-50__mindist-0	metric=canberra, n_neighbors=50, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		50.0	0.0	
+UMAP	umap	umap__metric-canberra__nn-50__mindist-0p1	metric=canberra, n_neighbors=50, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		50.0	0.1	
+UMAP	umap	umap__metric-canberra__nn-50__mindist-0p5	metric=canberra, n_neighbors=50, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		50.0	0.5	
+UMAP	umap	umap__metric-canberra__nn-50__mindist-1	metric=canberra, n_neighbors=50, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		50.0	1.0	
+UMAP	umap	umap__metric-canberra__nn-5__mindist-0	metric=canberra, n_neighbors=5, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		5.0	0.0	
+UMAP	umap	umap__metric-canberra__nn-5__mindist-0p1	metric=canberra, n_neighbors=5, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		5.0	0.1	
+UMAP	umap	umap__metric-canberra__nn-5__mindist-0p5	metric=canberra, n_neighbors=5, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		5.0	0.5	
+UMAP	umap	umap__metric-canberra__nn-5__mindist-1	metric=canberra, n_neighbors=5, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	canberra		5.0	1.0	
+UMAP	umap	umap__metric-cosine__nn-15__mindist-0	metric=cosine, n_neighbors=15, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		15.0	0.0	
+UMAP	umap	umap__metric-cosine__nn-15__mindist-0p1	metric=cosine, n_neighbors=15, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		15.0	0.1	
+UMAP	umap	umap__metric-cosine__nn-15__mindist-0p5	metric=cosine, n_neighbors=15, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		15.0	0.5	
+UMAP	umap	umap__metric-cosine__nn-15__mindist-1	metric=cosine, n_neighbors=15, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		15.0	1.0	
+UMAP	umap	umap__metric-cosine__nn-30__mindist-0	metric=cosine, n_neighbors=30, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		30.0	0.0	
+UMAP	umap	umap__metric-cosine__nn-30__mindist-0p1	metric=cosine, n_neighbors=30, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		30.0	0.1	
+UMAP	umap	umap__metric-cosine__nn-30__mindist-0p5	metric=cosine, n_neighbors=30, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		30.0	0.5	
+UMAP	umap	umap__metric-cosine__nn-30__mindist-1	metric=cosine, n_neighbors=30, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		30.0	1.0	
+UMAP	umap	umap__metric-cosine__nn-50__mindist-0	metric=cosine, n_neighbors=50, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		50.0	0.0	
+UMAP	umap	umap__metric-cosine__nn-50__mindist-0p1	metric=cosine, n_neighbors=50, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		50.0	0.1	
+UMAP	umap	umap__metric-cosine__nn-50__mindist-0p5	metric=cosine, n_neighbors=50, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		50.0	0.5	
+UMAP	umap	umap__metric-cosine__nn-50__mindist-1	metric=cosine, n_neighbors=50, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		50.0	1.0	
+UMAP	umap	umap__metric-cosine__nn-5__mindist-0	metric=cosine, n_neighbors=5, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		5.0	0.0	
+UMAP	umap	umap__metric-cosine__nn-5__mindist-0p1	metric=cosine, n_neighbors=5, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		5.0	0.1	
+UMAP	umap	umap__metric-cosine__nn-5__mindist-0p5	metric=cosine, n_neighbors=5, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		5.0	0.5	
+UMAP	umap	umap__metric-cosine__nn-5__mindist-1	metric=cosine, n_neighbors=5, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	cosine		5.0	1.0	
+UMAP	umap	umap__metric-euclidean__nn-15__mindist-0	metric=euclidean, n_neighbors=15, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		15.0	0.0	
+UMAP	umap	umap__metric-euclidean__nn-15__mindist-0p5	metric=euclidean, n_neighbors=15, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		15.0	0.5	
+UMAP	umap	umap__metric-euclidean__nn-15__mindist-1	metric=euclidean, n_neighbors=15, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		15.0	1.0	
+UMAP	umap	umap__metric-euclidean__nn-30__mindist-0	metric=euclidean, n_neighbors=30, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		30.0	0.0	
+UMAP	umap	umap__metric-euclidean__nn-30__mindist-0p1	metric=euclidean, n_neighbors=30, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		30.0	0.1	
+UMAP	umap	umap__metric-euclidean__nn-30__mindist-0p5	metric=euclidean, n_neighbors=30, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		30.0	0.5	
+UMAP	umap	umap__metric-euclidean__nn-30__mindist-1	metric=euclidean, n_neighbors=30, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		30.0	1.0	
+UMAP	umap	umap__metric-euclidean__nn-50__mindist-0	metric=euclidean, n_neighbors=50, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		50.0	0.0	
+UMAP	umap	umap__metric-euclidean__nn-50__mindist-0p1	metric=euclidean, n_neighbors=50, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		50.0	0.1	
+UMAP	umap	umap__metric-euclidean__nn-50__mindist-0p5	metric=euclidean, n_neighbors=50, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		50.0	0.5	
+UMAP	umap	umap__metric-euclidean__nn-50__mindist-1	metric=euclidean, n_neighbors=50, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		50.0	1.0	
+UMAP	umap	umap__metric-euclidean__nn-5__mindist-0	metric=euclidean, n_neighbors=5, min_dist=0	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		5.0	0.0	
+UMAP	umap	umap__metric-euclidean__nn-5__mindist-0p1	metric=euclidean, n_neighbors=5, min_dist=0.1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		5.0	0.1	
+UMAP	umap	umap__metric-euclidean__nn-5__mindist-0p5	metric=euclidean, n_neighbors=5, min_dist=0.5	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		5.0	0.5	
+UMAP	umap	umap__metric-euclidean__nn-5__mindist-1	metric=euclidean, n_neighbors=5, min_dist=1	False	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		5.0	1.0	

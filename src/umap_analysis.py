@@ -19,22 +19,23 @@ the project reference manuscript and the standard umap-learn defaults:
 * random_state = 42
 
 The script intentionally keeps clustering and formal metadata-association tests
-out of this stage so PCA, MDS, t-SNE, and UMAP can later be compared with one
-common downstream evaluation workflow.
+out of this stage. Every cached UMAP configuration receives a stable ID so the
+common downstream clustering and metadata-association workflow can analyze the
+full sensitivity cache without rerunning UMAP.
 
 Sensitivity analyses
 --------------------
 UMAP can change substantially with its neighborhood size, minimum embedding
-spacing, and input-space distance metric. The script therefore supports three
-small one-factor-at-a-time sweeps while holding the other primary parameters
-fixed:
+spacing, and input-space distance metric. The script therefore supports a cached multi-parameter sensitivity analysis.
+By default it evaluates the full factorial combination of:
 
 * ``n_neighbors``: 5, 15, 30, 50
 * ``min_dist``: 0.0, 0.1, 0.5, 1.0
 * ``metric``: euclidean, cosine, canberra
 
-The metric sweep mirrors the three representative distance metrics explored in
-the project reference manuscript. The original class UMAP notebook used cosine
+The metric choices mirror the three representative distance metrics explored in
+the project reference manuscript. Use ``--sweep-mode one-factor`` to reproduce
+the earlier one-factor-at-a-time sensitivity design. The original class UMAP notebook used cosine
 as its primary metric, so keeping cosine in the sensitivity analysis also lets
 us compare the rebuilt workflow with the historical analysis.
 
@@ -514,6 +515,16 @@ def plot_sweep(
     plt.close(fig)
 
 
+def _umap_configuration_id(metric: str, n_neighbors: int, min_dist: float) -> str:
+    """Stable ID used by clustering and later Streamlit selectors."""
+
+    md_tag = f"{float(min_dist):g}".replace(".", "p").replace("-", "m")
+    return (
+        f"umap__metric-{_safe_name(metric)}"
+        f"__nn-{int(n_neighbors)}__mindist-{md_tag}"
+    )
+
+
 def build_run_configs(
     *,
     primary_n_neighbors: int,
@@ -522,72 +533,74 @@ def build_run_configs(
     n_neighbors_grid: Sequence[int],
     min_dist_grid: Sequence[float],
     metric_grid: Sequence[str],
+    sweep_mode: str,
 ) -> list[dict[str, object]]:
-    """Build deduplicated primary and one-factor-at-a-time sensitivity configs."""
+    """Build deduplicated UMAP sensitivity configurations.
 
-    configs: list[dict[str, object]] = [
-        {
-            "sweep": "primary",
-            "label": "primary",
-            "n_neighbors": int(primary_n_neighbors),
-            "min_dist": float(primary_min_dist),
-            "metric": str(primary_metric),
-        }
-    ]
+    ``factorial`` evaluates every metric x n_neighbors x min_dist combination.
+    ``one-factor`` preserves the earlier one-factor-at-a-time behavior.
+    Primary values are always included once even when omitted from a grid.
+    """
 
-    for value in n_neighbors_grid:
+    if sweep_mode not in {"factorial", "one-factor"}:
+        raise ValueError("sweep_mode must be 'factorial' or 'one-factor'")
+
+    nn_values = (
+        sorted(set([int(primary_n_neighbors), *[int(v) for v in n_neighbors_grid]]))
+        if n_neighbors_grid
+        else [int(primary_n_neighbors)]
+    )
+    md_values = (
+        sorted(set([float(primary_min_dist), *[float(v) for v in min_dist_grid]]))
+        if min_dist_grid
+        else [float(primary_min_dist)]
+    )
+    metric_values = (
+        list(dict.fromkeys([str(primary_metric), *[str(v) for v in metric_grid]]))
+        if metric_grid
+        else [str(primary_metric)]
+    )
+
+    keys: list[tuple[int, float, str]] = []
+    if sweep_mode == "factorial":
+        for mt in metric_values:
+            for nn in nn_values:
+                for md in md_values:
+                    keys.append((int(nn), float(md), str(mt)))
+    else:
+        keys.append((int(primary_n_neighbors), float(primary_min_dist), str(primary_metric)))
+        keys.extend(
+            (int(nn), float(primary_min_dist), str(primary_metric)) for nn in nn_values
+        )
+        keys.extend(
+            (int(primary_n_neighbors), float(md), str(primary_metric)) for md in md_values
+        )
+        keys.extend(
+            (int(primary_n_neighbors), float(primary_min_dist), str(mt))
+            for mt in metric_values
+        )
+
+    unique_keys = list(dict.fromkeys(keys))
+    configs: list[dict[str, object]] = []
+    for nn, md, mt in unique_keys:
+        is_primary = (
+            nn == int(primary_n_neighbors)
+            and np.isclose(md, float(primary_min_dist))
+            and mt == str(primary_metric)
+        )
         configs.append(
             {
-                "sweep": "n_neighbors",
-                "label": f"n_neighbors={int(value)}",
-                "n_neighbors": int(value),
-                "min_dist": float(primary_min_dist),
-                "metric": str(primary_metric),
+                "configuration_id": _umap_configuration_id(mt, nn, md),
+                "configuration_label": (
+                    f"metric={mt}, n_neighbors={nn}, min_dist={md:g}"
+                ),
+                "is_primary": bool(is_primary),
+                "n_neighbors": int(nn),
+                "min_dist": float(md),
+                "metric": str(mt),
             }
         )
-
-    for value in min_dist_grid:
-        configs.append(
-            {
-                "sweep": "min_dist",
-                "label": f"min_dist={float(value):g}",
-                "n_neighbors": int(primary_n_neighbors),
-                "min_dist": float(value),
-                "metric": str(primary_metric),
-            }
-        )
-
-    for value in metric_grid:
-        configs.append(
-            {
-                "sweep": "metric",
-                "label": f"metric={value}",
-                "n_neighbors": int(primary_n_neighbors),
-                "min_dist": float(primary_min_dist),
-                "metric": str(value),
-            }
-        )
-
-    # Deduplicate computationally identical fits while preserving all sweep labels.
-    unique: dict[tuple[int, float, str], dict[str, object]] = {}
-    for cfg in configs:
-        key = (
-            int(cfg["n_neighbors"]),
-            float(cfg["min_dist"]),
-            str(cfg["metric"]),
-        )
-        if key not in unique:
-            unique[key] = {
-                "n_neighbors": key[0],
-                "min_dist": key[1],
-                "metric": key[2],
-                "memberships": [],
-            }
-        unique[key]["memberships"].append(
-            {"sweep": cfg["sweep"], "label": cfg["label"]}
-        )
-
-    return list(unique.values())
+    return configs
 
 
 def run_umap_analysis(
@@ -607,15 +620,18 @@ def run_umap_analysis(
     n_neighbors_grid: Sequence[int],
     min_dist_grid: Sequence[float],
     metric_grid: Sequence[str],
+    sweep_mode: str,
     color_by: Iterable[str],
     verbose: bool,
 ) -> dict[str, object]:
-    """Fit primary/sensitivity UMAPs, save outputs, and return summary."""
+    """Fit, diagnose, and cache primary/sensitivity UMAP configurations."""
 
     output_dir = Path(output_dir)
     figure_dir = output_dir / "figures"
+    cache_dir = output_dir / "sweep_embeddings"
     output_dir.mkdir(parents=True, exist_ok=True)
     figure_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     X_input, pre_pca_info = optional_pre_pca(
         X,
@@ -630,15 +646,18 @@ def run_umap_analysis(
         n_neighbors_grid=n_neighbors_grid,
         min_dist_grid=min_dist_grid,
         metric_grid=metric_grid,
+        sweep_mode=sweep_mode,
     )
 
     rows: list[dict[str, object]] = []
+    cached_score_tables: list[pd.DataFrame] = []
     fits: dict[tuple[int, float, str], tuple[object, np.ndarray]] = {}
 
     for cfg in configs:
         nn = int(cfg["n_neighbors"])
         md = float(cfg["min_dist"])
         mt = str(cfg["metric"])
+        config_id = str(cfg["configuration_id"])
         print(f"Fitting UMAP: n_neighbors={nn}, min_dist={md:g}, metric={mt}")
 
         model, embedding = fit_umap(
@@ -661,29 +680,53 @@ def run_umap_analysis(
             neighborhood_k=neighborhood_k,
             n_jobs=n_jobs,
         )
+        rows.append({**cfg, **diagnostics})
 
-        for membership in cfg["memberships"]:
-            rows.append(
-                {
-                    "sweep": membership["sweep"],
-                    "label": membership["label"],
-                    "n_neighbors": nn,
-                    "min_dist": md,
-                    "metric": mt,
-                    **diagnostics,
-                }
-            )
+        cached_scores = pd.DataFrame(
+            {
+                "sample_id": X.index,
+                "configuration_id": config_id,
+                "configuration_label": str(cfg["configuration_label"]),
+                "is_primary": bool(cfg["is_primary"]),
+                "n_neighbors": nn,
+                "min_dist": md,
+                "metric": mt,
+                "UMAP1": embedding[:, 0],
+                "UMAP2": embedding[:, 1],
+            }
+        )
+        cached_score_tables.append(cached_scores)
+        cached_scores.to_csv(
+            cache_dir / f"{config_id}.tsv.gz",
+            sep="\t",
+            index=False,
+            compression="gzip",
+        )
 
-    diagnostic_table = pd.DataFrame(rows)
+    diagnostic_table = pd.DataFrame(rows).sort_values(
+        ["metric", "n_neighbors", "min_dist"]
+    )
     diagnostic_table.to_csv(
         output_dir / "umap_parameter_diagnostics.tsv",
         sep="\t",
         index=False,
     )
+    diagnostic_table.to_csv(
+        output_dir / "umap_embedding_manifest.tsv",
+        sep="\t",
+        index=False,
+    )
+
+    all_cached_scores = pd.concat(cached_score_tables, ignore_index=True)
+    all_cached_scores.to_csv(
+        output_dir / "umap_sensitivity_scores.tsv.gz",
+        sep="\t",
+        index=False,
+        compression="gzip",
+    )
 
     primary_key = (int(n_neighbors), float(min_dist), str(metric))
     primary_model, primary_embedding = fits[primary_key]
-
     scores = pd.DataFrame(
         primary_embedding,
         index=X.index,
@@ -732,47 +775,42 @@ def run_umap_analysis(
             ),
         )
 
-    # Sweep figures use the already-cached embeddings.
+    # Familiar one-dimensional slices are retained for static inspection even
+    # when the full factorial grid is cached.
     neighbor_fits: list[tuple[str, np.ndarray]] = []
-    for value in n_neighbors_grid:
+    for value in sorted(set([int(n_neighbors), *[int(v) for v in n_neighbors_grid]])):
         key = (int(value), float(min_dist), str(metric))
         if key in fits:
             neighbor_fits.append((f"n_neighbors={int(value)}", fits[key][1]))
     plot_sweep(
         neighbor_fits,
         figure_dir / "umap_n_neighbors_sweep.png",
-        title="UMAP n_neighbors sensitivity",
+        title="UMAP n_neighbors sensitivity (primary metric/min_dist)",
     )
 
     min_dist_fits: list[tuple[str, np.ndarray]] = []
-    for value in min_dist_grid:
+    for value in sorted(set([float(min_dist), *[float(v) for v in min_dist_grid]])):
         key = (int(n_neighbors), float(value), str(metric))
         if key in fits:
             min_dist_fits.append((f"min_dist={float(value):g}", fits[key][1]))
     plot_sweep(
         min_dist_fits,
         figure_dir / "umap_min_dist_sweep.png",
-        title="UMAP min_dist sensitivity",
+        title="UMAP min_dist sensitivity (primary metric/n_neighbors)",
     )
 
     metric_fits: list[tuple[str, np.ndarray]] = []
-    for value in metric_grid:
+    for value in list(dict.fromkeys([str(metric), *[str(v) for v in metric_grid]])):
         key = (int(n_neighbors), float(min_dist), str(value))
         if key in fits:
             metric_fits.append((f"metric={value}", fits[key][1]))
     plot_sweep(
         metric_fits,
         figure_dir / "umap_metric_sweep.png",
-        title="UMAP metric sensitivity",
+        title="UMAP metric sensitivity (primary n_neighbors/min_dist)",
     )
 
-    primary_row = diagnostic_table.loc[
-        (diagnostic_table["sweep"] == "primary")
-        & (diagnostic_table["n_neighbors"] == int(n_neighbors))
-        & np.isclose(diagnostic_table["min_dist"], float(min_dist))
-        & (diagnostic_table["metric"] == str(metric))
-    ].iloc[0]
-
+    primary_row = diagnostic_table.loc[diagnostic_table["is_primary"]].iloc[0]
     summary: dict[str, object] = {
         "input": {
             "samples": int(X.shape[0]),
@@ -797,13 +835,19 @@ def run_umap_analysis(
             },
         },
         "sensitivity": {
-            "n_neighbors": [int(v) for v in n_neighbors_grid],
-            "min_dist": [float(v) for v in min_dist_grid],
-            "metrics": [str(v) for v in metric_grid],
+            "sweep_mode": sweep_mode,
+            "n_neighbors": sorted(set([int(n_neighbors), *[int(v) for v in n_neighbors_grid]])),
+            "min_dist": sorted(set([float(min_dist), *[float(v) for v in min_dist_grid]])),
+            "metrics": list(dict.fromkeys([str(metric), *[str(v) for v in metric_grid]])),
             "neighborhood_k": [int(v) for v in neighborhood_k],
+            "n_embeddings": int(len(configs)),
         },
         "outputs": {
             "metadata_overlays": requested_metadata,
+            "sensitivity_scores": "umap_sensitivity_scores.tsv.gz",
+            "sensitivity_diagnostics": "umap_parameter_diagnostics.tsv",
+            "embedding_manifest": "umap_embedding_manifest.tsv",
+            "sweep_embedding_dir": "sweep_embeddings",
         },
     }
 
@@ -811,7 +855,6 @@ def run_umap_analysis(
         json.dump(summary, f, indent=2)
 
     return summary
-
 
 def format_summary(summary: dict[str, object]) -> str:
     """Format the primary UMAP result for terminal output."""
@@ -861,6 +904,8 @@ def format_summary(summary: dict[str, object]) -> str:
             + ", ".join(f"{v:g}" for v in sensitivity["min_dist"]),
             "metric sweep:                    "
             + ", ".join(sensitivity["metrics"]),
+            f"Sweep mode:                      {sensitivity['sweep_mode']}",
+            f"Sensitivity embeddings cached:  {sensitivity['n_embeddings']}",
         ]
     )
     return "\n".join(lines)
@@ -971,6 +1016,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--sweep-mode",
+        choices=("factorial", "one-factor"),
+        default="factorial",
+        help=(
+            "Sensitivity-grid strategy. 'factorial' caches every metric x n_neighbors "
+            "x min_dist combination; 'one-factor' reproduces the earlier OFAT sweep "
+            "(default: factorial)."
+        ),
+    )
+    parser.add_argument(
         "--color-by",
         nargs="*",
         default=list(DEFAULT_COLOR_BY),
@@ -1016,6 +1071,7 @@ def main() -> None:
         n_neighbors_grid=args.n_neighbors_grid,
         min_dist_grid=args.min_dist_grid,
         metric_grid=args.metric_grid,
+        sweep_mode=args.sweep_mode,
         color_by=args.color_by,
         verbose=args.verbose,
     )

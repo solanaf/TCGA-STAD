@@ -2,28 +2,9 @@
   "input": {
     "samples": 412,
     "clustering_dir": "analysis/clustering",
-    "methods": {
-      "mds": {
-        "name": "MDS",
-        "best_k": 3,
-        "cluster_column": "mds_cluster"
-      },
-      "pca": {
-        "name": "PCA",
-        "best_k": 2,
-        "cluster_column": "pca_cluster"
-      },
-      "tsne": {
-        "name": "t-SNE",
-        "best_k": 3,
-        "cluster_column": "tsne_cluster"
-      },
-      "umap": {
-        "name": "UMAP",
-        "best_k": 9,
-        "cluster_column": "umap_cluster"
-      }
-    }
+    "configurations": 63,
+    "primary_configurations": 4,
+    "sensitivity_configurations": 59
   },
   "categorical": {
     "requested_variables": [
@@ -40,25 +21,37 @@
       "DFI",
       "PFI"
     ],
-    "valid_tests": 48,
+    "valid_tests": 756,
     "n_permutations_for_sparse_tables": 5000
   },
   "continuous": {
     "requested_variables": [
       "age_at_initial_pathologic_diagnosis"
     ],
-    "valid_tests": 4,
+    "valid_tests": 63,
     "min_group_size": 2
   },
   "multiple_testing": {
     "method": "Benjamini-Hochberg",
-    "global_fdr_alpha": 0.05,
-    "global_tests": 52,
-    "significant_global_fdr": 28
+    "fdr_alpha": 0.05,
+    "q_value": "all configurations and families",
+    "q_value_family": "within categorical/continuous family across all configurations",
+    "q_value_scope": "separately within primary vs sensitivity scope",
+    "q_value_family_scope": "within family and primary/sensitivity scope",
+    "primary_significant_q_scope": 28,
+    "sensitivity_significant_q_scope": 423
   },
   "notes": {
     "cluster_selection_used_metadata": false,
-    "parameter_sweep_embeddings_analyzed": false,
+    "parameter_sweep_embeddings_analyzed": true,
+    "metadata_used_to_select_embedding_configuration": false,
+    "static_heatmaps_show_primary_only": true,
     "survival_time_columns_defaulted_to_continuous": false
+  },
+  "outputs": {
+    "configuration_manifest": "configuration_manifest.tsv",
+    "all_associations": "all_associations.tsv",
+    "primary_associations": "primary_all_associations.tsv",
+    "sensitivity_associations": "sensitivity_all_associations.tsv"
   }
 }

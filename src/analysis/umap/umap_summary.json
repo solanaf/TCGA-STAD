@@ -22,6 +22,7 @@
     "mean_jaccard_k30": 0.26375305414948874
   },
   "sensitivity": {
+    "sweep_mode": "factorial",
     "n_neighbors": [
       5,
       15,
@@ -42,7 +43,8 @@
     "neighborhood_k": [
       15,
       30
-    ]
+    ],
+    "n_embeddings": 48
   },
   "outputs": {
     "metadata_overlays": [
@@ -52,6 +54,10 @@
       "ajcc_pathologic_tumor_stage",
       "histological_grade",
       "vital_status"
-    ]
+    ],
+    "sensitivity_scores": "umap_sensitivity_scores.tsv.gz",
+    "sensitivity_diagnostics": "umap_parameter_diagnostics.tsv",
+    "embedding_manifest": "umap_embedding_manifest.tsv",
+    "sweep_embedding_dir": "sweep_embeddings"
   }
 }
