@@ -1,0 +1,59 @@
+{
+  "input": {
+    "samples": 412,
+    "genes": 8194,
+    "pre_pca_enabled": false,
+    "pre_pca_components": null,
+    "pre_pca_variance_percent": null
+  },
+  "tsne": {
+    "n_components": 2,
+    "perplexity": 30.0,
+    "early_exaggeration": 12.0,
+    "learning_rate_requested": "auto",
+    "effective_learning_rate": 50.0,
+    "max_iter": 1000,
+    "n_iter": 999,
+    "init": "pca",
+    "metric": "euclidean",
+    "method": "barnes_hut",
+    "angle": 0.5,
+    "random_state": 42,
+    "kl_divergence": 1.0190091133117676,
+    "trustworthiness_k15": 0.8719207826889959,
+    "mean_jaccard_k15": 0.2505323200655797,
+    "trustworthiness_k30": 0.8492196364631761,
+    "mean_jaccard_k30": 0.2745424261777058
+  },
+  "sensitivity": {
+    "perplexities": [
+      5.0,
+      15.0,
+      30.0,
+      50.0
+    ],
+    "metrics": [
+      "euclidean",
+      "cosine",
+      "correlation"
+    ],
+    "neighborhood_k": [
+      15,
+      30
+    ],
+    "n_embeddings": 12
+  },
+  "outputs": {
+    "metadata_overlays": [
+      "center_code",
+      "gender",
+      "race",
+      "ajcc_pathologic_tumor_stage",
+      "histological_grade",
+      "vital_status"
+    ],
+    "sensitivity_scores": "tsne_sensitivity_scores.tsv.gz",
+    "sensitivity_diagnostics": "tsne_sensitivity_diagnostics.tsv",
+    "sweep_embedding_dir": "sweep_embeddings"
+  }
+}

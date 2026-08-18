@@ -1,0 +1,32 @@
+{
+  "input": {
+    "samples": 412,
+    "genes": 8194
+  },
+  "pca": {
+    "components_fit": 411,
+    "svd_solver": "full",
+    "pc1_explained_variance_percent": 17.166128537482418,
+    "pc2_explained_variance_percent": 6.718103886756434,
+    "pc1_pc2_cumulative_variance_percent": 23.88423242423885,
+    "pc1_pc2_pc3_cumulative_variance_percent": 28.131067013115118,
+    "components_for_variance_threshold": {
+      "50_percent": 14,
+      "80_percent": 119,
+      "90_percent": 217,
+      "95_percent": 292
+    }
+  },
+  "outputs": {
+    "loadings_components_saved": 20,
+    "top_loadings_per_direction": 20,
+    "metadata_overlays": [
+      "center_code",
+      "gender",
+      "race",
+      "ajcc_pathologic_tumor_stage",
+      "histological_grade",
+      "vital_status"
+    ]
+  }
+}

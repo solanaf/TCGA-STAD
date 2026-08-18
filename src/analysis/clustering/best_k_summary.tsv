@@ -1,5 +1,0 @@
-method	method_key	configuration_id	configuration_label	is_primary	source_file	metric	perplexity	n_neighbors	min_dist	pre_pca_components	k	silhouette	calinski_harabasz	davies_bouldin	inertia	min_cluster_size	max_cluster_size	cluster_size_ratio
-MDS	mds	mds__primary	primary	True	analysis/mds/mds_scores.tsv.gz						3	0.3546605667820452	286.33831812433965	0.8922436386531968	1189766.3197410158	133	142	0.9366197183098591
-PCA	pca	pca__primary	primary	True	analysis/pca/pca_scores.tsv.gz						2	0.39062140792779665	352.64315929977755	0.9535875357374693	433477.88132193335	168	244	0.6885245901639344
-t-SNE	tsne	tsne__primary	primary	True	analysis/tsne/tsne_scores.tsv.gz						3	0.3980867502579753	356.0976704817963	0.8639618208217336	19276.506622644712	120	148	0.8108108108108109
-UMAP	umap	umap__metric-euclidean__nn-15__mindist-0p1	metric=euclidean, n_neighbors=15, min_dist=0.1	True	analysis/umap/umap_sensitivity_scores.tsv.gz	euclidean		15.0	0.1		9	0.4345103321449337	474.3272630545646	0.74826196338767	192.98202598301066	19	61	0.3114754098360656
