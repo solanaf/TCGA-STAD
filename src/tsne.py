@@ -17,12 +17,13 @@ The primary analysis uses a reproducible, modern scikit-learn baseline:
 * Barnes-Hut optimization
 * random_state = 42
 
-Because t-SNE layouts can change substantially with perplexity and other
-hyperparameters, the script also supports a small perplexity sensitivity sweep.
-The default sweep evaluates perplexities 5, 15, 30, and 50 while holding all
-other settings fixed. The sweep is *not* optimized using K-means, DBSCAN, or
-clinical metadata. Instead, each embedding is characterized using the t-SNE
+Because t-SNE layouts can change substantially with perplexity and distance
+metric, the script also supports a two-dimensional sensitivity sweep. By
+default it evaluates perplexities 5, 15, 30, and 50 across Euclidean, cosine,
+and correlation distances. The sweep is *not* optimized using K-means, DBSCAN,
+or clinical metadata. Instead, each embedding is characterized using the t-SNE
 optimization objective (KL divergence) and neighborhood-preservation metrics.
+All sweep coordinates are cached to disk for later downstream comparison.
 
 Neighborhood diagnostics
 ------------------------
@@ -112,6 +113,7 @@ from sklearn.neighbors import NearestNeighbors
 
 DEFAULT_COLOR_BY = ("center_code",)
 DEFAULT_PERPLEXITY_GRID = (5.0, 15.0, 30.0, 50.0)
+DEFAULT_METRIC_GRID = ("euclidean", "cosine", "correlation")
 DEFAULT_NEIGHBORHOOD_K = (15, 30)
 
 
@@ -411,16 +413,17 @@ def embedding_diagnostics(
         ),
     }
 
-    # sklearn trustworthiness currently uses Euclidean distance for the original
-    # feature space. Retain it as a standard diagnostic, and use the Jaccard
-    # metric below for a distance-metric-aware comparison.
+    trustworthiness_params = inspect.signature(trustworthiness).parameters
     for k in neighborhood_k:
         if k >= X_original.shape[0] / 2:
             raise ValueError(
                 f"trustworthiness requires k < n_samples/2; got k={k}"
             )
+        trust_kwargs: dict[str, object] = {"n_neighbors": k}
+        if "metric" in trustworthiness_params:
+            trust_kwargs["metric"] = original_metric
         diagnostics[f"trustworthiness_k{k}"] = float(
-            trustworthiness(X_original, embedding, n_neighbors=k)
+            trustworthiness(X_original, embedding, **trust_kwargs)
         )
         diagnostics[f"mean_jaccard_k{k}"] = mean_jaccard_neighbor_overlap(
             X_original,
@@ -445,6 +448,7 @@ def plot_embedding(
     *,
     color_by: str | None = None,
     perplexity: float,
+    metric: str,
 ) -> None:
     """Save a two-dimensional t-SNE scatterplot."""
 
@@ -505,9 +509,9 @@ def plot_embedding(
     ax.set_xlabel("t-SNE 1")
     ax.set_ylabel("t-SNE 2")
     if color_by is None:
-        title = f"t-SNE embedding (perplexity={perplexity:g})"
+        title = f"t-SNE embedding ({metric}, perplexity={perplexity:g})"
     else:
-        title = f"t-SNE — {color_by} (perplexity={perplexity:g})"
+        title = f"t-SNE — {color_by} ({metric}, perplexity={perplexity:g})"
     ax.set_title(title)
     fig.tight_layout()
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
@@ -541,6 +545,74 @@ def plot_perplexity_sweep(
         ax.axis("off")
 
     fig.suptitle("t-SNE sensitivity to perplexity")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_sensitivity_sweep(
+    embeddings: dict[tuple[str, float], np.ndarray],
+    output_path: Path,
+    *,
+    metrics: Sequence[str],
+    perplexities: Sequence[float],
+) -> None:
+    """Save a metric-by-perplexity grid of uncolored t-SNE embeddings."""
+
+    if not embeddings or not metrics or not perplexities:
+        return
+
+    nrows = len(metrics)
+    ncols = len(perplexities)
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(4.8 * ncols, 4.2 * nrows),
+        squeeze=False,
+    )
+
+    for row_idx, metric_name in enumerate(metrics):
+        for col_idx, p in enumerate(perplexities):
+            ax = axes[row_idx, col_idx]
+            embedding = embeddings.get((metric_name, float(p)))
+            if embedding is None:
+                ax.axis("off")
+                continue
+            ax.scatter(embedding[:, 0], embedding[:, 1], s=18, alpha=0.8)
+            ax.set_xlabel("t-SNE 1")
+            ax.set_ylabel("t-SNE 2")
+            ax.set_title(f"{metric_name} | perplexity={p:g}")
+
+    fig.suptitle("t-SNE sensitivity to distance metric and perplexity")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_metric_sweep(
+    embeddings: dict[str, np.ndarray],
+    output_path: Path,
+    *,
+    perplexity: float,
+) -> None:
+    """Save side-by-side uncolored embeddings across distance metrics."""
+
+    metrics = list(embeddings)
+    if not metrics:
+        return
+
+    n = len(metrics)
+    fig, axes = plt.subplots(1, n, figsize=(6.0 * n, 5.2), squeeze=False)
+    axes_array = axes.ravel()
+
+    for ax, metric_name in zip(axes_array, metrics):
+        embedding = embeddings[metric_name]
+        ax.scatter(embedding[:, 0], embedding[:, 1], s=22, alpha=0.8)
+        ax.set_xlabel("t-SNE 1")
+        ax.set_ylabel("t-SNE 2")
+        ax.set_title(metric_name)
+
+    fig.suptitle(f"t-SNE sensitivity to distance metric (perplexity={perplexity:g})")
     fig.tight_layout()
     fig.savefig(output_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -604,6 +676,7 @@ def run_analysis(
     max_iter: int,
     init: str,
     metric: str,
+    metric_grid: Iterable[str],
     method: str,
     angle: float,
     n_jobs: int,
@@ -617,8 +690,10 @@ def run_analysis(
 
     output_dir = Path(output_dir)
     figure_dir = output_dir / "figures"
+    cache_dir = output_dir / "sweep_embeddings"
     output_dir.mkdir(parents=True, exist_ok=True)
     figure_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     X_input, pre_pca_info = prepare_tsne_input(
         X,
@@ -627,54 +702,105 @@ def run_analysis(
     )
     X_original = X.to_numpy(dtype=float, copy=False)
 
-    # Include the primary perplexity exactly once, even if the user omitted it
-    # from the sensitivity grid.
+    # Include the primary perplexity and metric exactly once, even if the user
+    # omitted either one from the corresponding sensitivity grid.
     all_perplexities = sorted(
         set(float(v) for v in list(perplexity_grid) + [float(perplexity)])
     )
     if not all_perplexities:
         all_perplexities = [float(perplexity)]
 
-    embeddings: dict[float, np.ndarray] = {}
-    models: dict[float, TSNE] = {}
+    all_metrics = list(dict.fromkeys([str(v) for v in metric_grid] + [str(metric)]))
+    if not all_metrics:
+        all_metrics = [str(metric)]
+
+    embeddings: dict[tuple[str, float], np.ndarray] = {}
+    models: dict[tuple[str, float], TSNE] = {}
     diagnostic_rows: list[dict[str, object]] = []
+    cached_score_tables: list[pd.DataFrame] = []
 
-    for p in all_perplexities:
-        model, embedding = fit_tsne(
-            X_input,
-            perplexity=p,
-            early_exaggeration=early_exaggeration,
-            learning_rate=learning_rate,
-            max_iter=max_iter,
-            init=init,
-            metric=metric,
-            method=method,
-            angle=angle,
-            n_jobs=n_jobs,
-            random_state=random_state,
-            verbose=verbose,
-        )
-        diagnostics = embedding_diagnostics(
-            X_original,
-            embedding,
-            model,
-            original_metric=metric,
-            neighborhood_k=neighborhood_k,
-            n_jobs=n_jobs,
-        )
-        diagnostic_rows.append({"perplexity": p, **diagnostics})
-        embeddings[p] = embedding
-        models[p] = model
+    for metric_name in all_metrics:
+        for p in all_perplexities:
+            model, embedding = fit_tsne(
+                X_input,
+                perplexity=p,
+                early_exaggeration=early_exaggeration,
+                learning_rate=learning_rate,
+                max_iter=max_iter,
+                init=init,
+                metric=metric_name,
+                method=method,
+                angle=angle,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                verbose=verbose,
+            )
+            diagnostics = embedding_diagnostics(
+                X_original,
+                embedding,
+                model,
+                original_metric=metric_name,
+                neighborhood_k=neighborhood_k,
+                n_jobs=n_jobs,
+            )
+            diagnostic_rows.append(
+                {"metric": metric_name, "perplexity": p, **diagnostics}
+            )
+            embeddings[(metric_name, p)] = embedding
+            models[(metric_name, p)] = model
 
-    diagnostic_table = pd.DataFrame(diagnostic_rows).sort_values("perplexity")
+            cached_scores = pd.DataFrame(
+                {
+                    "sample_id": X.index,
+                    "metric": metric_name,
+                    "perplexity": p,
+                    "tSNE1": embedding[:, 0],
+                    "tSNE2": embedding[:, 1],
+                }
+            )
+            cached_score_tables.append(cached_scores)
+            p_tag = f"{p:g}".replace(".", "p")
+            cached_scores.to_csv(
+                cache_dir
+                / f"tsne_{_safe_name(metric_name)}_perplexity_{p_tag}.tsv.gz",
+                sep="\t",
+                index=False,
+                compression="gzip",
+            )
+
+    diagnostic_table = pd.DataFrame(diagnostic_rows).sort_values(
+        ["metric", "perplexity"]
+    )
     diagnostic_table.to_csv(
+        output_dir / "tsne_sensitivity_diagnostics.tsv",
+        sep="\t",
+        index=False,
+    )
+
+    # Retain the original perplexity-only diagnostics output for downstream
+    # compatibility, filtered to the primary metric.
+    primary_metric_diagnostics = (
+        diagnostic_table.loc[diagnostic_table["metric"].eq(metric)]
+        .sort_values("perplexity")
+        .reset_index(drop=True)
+    )
+    primary_metric_diagnostics.drop(columns="metric").to_csv(
         output_dir / "tsne_perplexity_diagnostics.tsv",
         sep="\t",
         index=False,
     )
 
-    primary_embedding = embeddings[float(perplexity)]
-    primary_model = models[float(perplexity)]
+    all_cached_scores = pd.concat(cached_score_tables, ignore_index=True)
+    all_cached_scores.to_csv(
+        output_dir / "tsne_sensitivity_scores.tsv.gz",
+        sep="\t",
+        index=False,
+        compression="gzip",
+    )
+
+    primary_key = (str(metric), float(perplexity))
+    primary_embedding = embeddings[primary_key]
+    primary_model = models[primary_key]
 
     scores = pd.DataFrame(
         primary_embedding,
@@ -699,6 +825,7 @@ def run_analysis(
         scores_with_metadata,
         figure_dir / "tsne1_tsne2.png",
         perplexity=perplexity,
+        metric=metric,
     )
 
     requested_metadata = list(dict.fromkeys(color_by))
@@ -714,21 +841,45 @@ def run_analysis(
             figure_dir / f"tsne1_tsne2_by_{_safe_name(metadata_column)}.png",
             color_by=metadata_column,
             perplexity=perplexity,
+            metric=metric,
         )
 
-    if len(embeddings) > 1:
+    primary_metric_embeddings = {
+        p: embeddings[(str(metric), p)] for p in all_perplexities
+    }
+    if len(primary_metric_embeddings) > 1:
         plot_perplexity_sweep(
-            embeddings,
+            primary_metric_embeddings,
             figure_dir / "tsne_perplexity_sweep.png",
         )
         plot_perplexity_diagnostics(
-            diagnostic_table,
+            primary_metric_diagnostics,
             figure_dir / "tsne_perplexity_diagnostics.png",
             neighborhood_k=neighborhood_k,
         )
 
+    primary_perplexity_embeddings = {
+        metric_name: embeddings[(metric_name, float(perplexity))]
+        for metric_name in all_metrics
+    }
+    if len(primary_perplexity_embeddings) > 1:
+        plot_metric_sweep(
+            primary_perplexity_embeddings,
+            figure_dir / "tsne_metric_sweep.png",
+            perplexity=perplexity,
+        )
+
+    if len(embeddings) > 1:
+        plot_sensitivity_sweep(
+            embeddings,
+            figure_dir / "tsne_metric_perplexity_sweep.png",
+            metrics=all_metrics,
+            perplexities=all_perplexities,
+        )
+
     primary_row = diagnostic_table.loc[
-        np.isclose(diagnostic_table["perplexity"], float(perplexity))
+        diagnostic_table["metric"].eq(metric)
+        & np.isclose(diagnostic_table["perplexity"], float(perplexity))
     ].iloc[0]
 
     summary: dict[str, object] = {
@@ -763,10 +914,15 @@ def run_analysis(
         },
         "sensitivity": {
             "perplexities": [float(v) for v in all_perplexities],
+            "metrics": all_metrics,
             "neighborhood_k": [int(v) for v in neighborhood_k],
+            "n_embeddings": int(len(embeddings)),
         },
         "outputs": {
             "metadata_overlays": requested_metadata,
+            "sensitivity_scores": "tsne_sensitivity_scores.tsv.gz",
+            "sensitivity_diagnostics": "tsne_sensitivity_diagnostics.tsv",
+            "sweep_embedding_dir": "sweep_embeddings",
         },
     }
 
@@ -822,6 +978,13 @@ def format_summary(summary: dict[str, object]) -> str:
         "Perplexity sweep:               "
         + ", ".join(f"{v:g}" for v in sensitivity["perplexities"])
     )
+    lines.append(
+        "Metric sweep:                   "
+        + ", ".join(str(v) for v in sensitivity["metrics"])
+    )
+    lines.append(
+        f"Sensitivity embeddings cached:  {sensitivity['n_embeddings']}"
+    )
     return "\n".join(lines)
 
 
@@ -852,7 +1015,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=list(DEFAULT_PERPLEXITY_GRID),
         help=(
             "Perplexities used for sensitivity diagnostics (default: 5 15 30 50). "
-            "Pass --perplexity-grid with no values to run only the primary embedding."
+            "Pass --perplexity-grid with no values to run only the primary perplexity."
         ),
     )
     parser.add_argument(
@@ -883,6 +1046,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--metric",
         default="euclidean",
         help="Input-space distance metric (default: euclidean)",
+    )
+    parser.add_argument(
+        "--metric-grid",
+        nargs="*",
+        default=list(DEFAULT_METRIC_GRID),
+        help=(
+            "Distance metrics used for sensitivity diagnostics "
+            "(default: euclidean cosine correlation). Pass --metric-grid with "
+            "no values to run only the primary --metric."
+        ),
     )
     parser.add_argument(
         "--method",
@@ -964,6 +1137,7 @@ def main() -> None:
         max_iter=args.max_iter,
         init=args.init,
         metric=args.metric,
+        metric_grid=args.metric_grid,
         method=args.method,
         angle=args.angle,
         n_jobs=args.n_jobs,

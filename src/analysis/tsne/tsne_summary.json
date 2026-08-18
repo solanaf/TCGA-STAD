@@ -32,10 +32,16 @@
       30.0,
       50.0
     ],
+    "metrics": [
+      "euclidean",
+      "cosine",
+      "correlation"
+    ],
     "neighborhood_k": [
       15,
       30
-    ]
+    ],
+    "n_embeddings": 12
   },
   "outputs": {
     "metadata_overlays": [
@@ -45,6 +51,9 @@
       "ajcc_pathologic_tumor_stage",
       "histological_grade",
       "vital_status"
-    ]
+    ],
+    "sensitivity_scores": "tsne_sensitivity_scores.tsv.gz",
+    "sensitivity_diagnostics": "tsne_sensitivity_diagnostics.tsv",
+    "sweep_embedding_dir": "sweep_embeddings"
   }
 }
