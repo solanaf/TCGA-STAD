@@ -1,0 +1,64 @@
+{
+  "input": {
+    "samples": 412,
+    "clustering_dir": "analysis/clustering",
+    "methods": {
+      "mds": {
+        "name": "MDS",
+        "best_k": 3,
+        "cluster_column": "mds_cluster"
+      },
+      "pca": {
+        "name": "PCA",
+        "best_k": 2,
+        "cluster_column": "pca_cluster"
+      },
+      "tsne": {
+        "name": "t-SNE",
+        "best_k": 3,
+        "cluster_column": "tsne_cluster"
+      },
+      "umap": {
+        "name": "UMAP",
+        "best_k": 9,
+        "cluster_column": "umap_cluster"
+      }
+    }
+  },
+  "categorical": {
+    "requested_variables": [
+      "center_code",
+      "gender",
+      "race",
+      "ajcc_pathologic_tumor_stage",
+      "histological_type",
+      "histological_grade",
+      "tumor_status",
+      "vital_status",
+      "OS",
+      "DSS",
+      "DFI",
+      "PFI"
+    ],
+    "valid_tests": 48,
+    "n_permutations_for_sparse_tables": 5000
+  },
+  "continuous": {
+    "requested_variables": [
+      "age_at_initial_pathologic_diagnosis"
+    ],
+    "valid_tests": 4,
+    "min_group_size": 2
+  },
+  "multiple_testing": {
+    "method": "Benjamini-Hochberg",
+    "global_fdr_alpha": 0.05,
+    "global_tests": 52,
+    "significant_global_fdr": 28
+  },
+  "notes": {
+    "cluster_selection_used_metadata": false,
+    "parameter_sweep_embeddings_analyzed": false,
+    "survival_time_columns_defaulted_to_continuous": false
+  }
+}

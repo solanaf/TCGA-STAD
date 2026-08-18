@@ -1,0 +1,5 @@
+test_id	method	method_key	k	variable	status	n	n_clusters	test	statistic	p_value	epsilon_squared	q_value_family	q_value
+continuous::mds::age_at_initial_pathologic_diagnosis	MDS	mds	3	age_at_initial_pathologic_diagnosis	ok	407	3	kruskal_wallis	0.8624648446416151	0.6497078866098831	0.0	0.6497078866098831	0.6497078866098831
+continuous::pca::age_at_initial_pathologic_diagnosis	PCA	pca	2	age_at_initial_pathologic_diagnosis	ok	407	2	kruskal_wallis	6.44784349631511	0.011108709921859994	0.013451465423000271	0.01481161322914666	0.024068871497363323
+continuous::tsne::age_at_initial_pathologic_diagnosis	t-SNE	tsne	3	age_at_initial_pathologic_diagnosis	ok	407	3	kruskal_wallis	14.933922434715067	0.0005716628191770473	0.03201465949186898	0.0011433256383540946	0.002972646659720646
+continuous::umap::age_at_initial_pathologic_diagnosis	UMAP	umap	9	age_at_initial_pathologic_diagnosis	ok	407	9	kruskal_wallis	30.905527874180184	0.0001460477080536794	0.057551577573317046	0.0005841908322147176	0.0012573756303270506
