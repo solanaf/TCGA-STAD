@@ -44,7 +44,7 @@ pages = {
     "TCGA-STAD mini projects": [
         st.Page(
             project1_expression_structure.render,
-            title="1 · Expression structure",
+            title="1 · Gene Expression Subgroups",
             icon="🧬",
             default=True,
         ),
@@ -69,11 +69,54 @@ pages = {
         st.Page(
             project5.render,
             title="5 · Coming soon",
-            icon="🧠",
+            icon="💊",
             url_path="project-5",
         ),
     ]
 }
 
 page = st.navigation(pages, position="sidebar")
+
 page.run()
+
+with st.sidebar:
+    st.divider()
+
+    st.caption("Connect")
+
+    st.link_button(
+        "GitHub",
+        "https://github.com/solanaf",
+        icon=":material/code:",
+        width="stretch",
+    )
+
+    st.link_button(
+        "LinkedIn",
+        "https://www.linkedin.com/in/solanaf",
+        icon=":material/work:",
+        width="stretch",
+    )
+
+    st.link_button(
+        "Portfolio",
+        "https://solanaf.github.io/portfolio-v1/#portfolio",
+        icon=":material/science:",
+        width="stretch",
+    )
+
+    st.link_button(
+        "Personal website",
+        "https://solanaf.github.io/portfolio-v1/",
+        icon=":material/language:",
+        width="stretch",
+    )
+
+    st.divider()
+
+    st.markdown(
+        """
+        **Solana Fernandez**  
+        [sbfernandez@ucsd.edu](mailto:sbfernandez@ucsd.edu)
+        """
+    )

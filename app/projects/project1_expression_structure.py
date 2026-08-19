@@ -31,13 +31,9 @@ STEPS = (
 METHOD_NAMES = {"pca": "PCA", "mds": "MDS", "tsne": "t-SNE", "umap": "UMAP"}
 
 
-def _root() -> Path:
-    value = st.session_state.get("project_root", ".")
-    return Path(value).expanduser().resolve()
+def _sidebar() -> tuple[str, Path]:
+    """Render Project 1 workflow navigation and use the launch directory as root."""
 
-
-def _sidebar() -> str:
-    st.sidebar.divider()
     st.sidebar.caption("Project 1")
     step = st.sidebar.radio(
         "Workflow step",
@@ -48,16 +44,12 @@ def _sidebar() -> str:
             "The app reads cached outputs so changing a cached configuration is immediate."
         ),
     )
-    st.sidebar.text_input(
-        "Project root",
-        value=st.session_state.get("project_root", "."),
-        key="project_root",
-        help=(
-            "Folder containing `processed/` and `analysis/`. Run Streamlit from the project "
-            "root and leave this as `.` in the usual setup."
-        ),
-    )
-    return step
+
+    # Streamlit is launched from the TCGA-STAD repository root, so the project
+    # root is always the current working directory. This is intentionally not
+    # exposed as a UI control.
+    root = Path.cwd().resolve()
+    return step, root
 
 
 def _missing(root: Path, paths: list[str]) -> bool:
@@ -96,13 +88,13 @@ def _metadata_color_control(metadata: pd.DataFrame | None, key: str) -> str | No
 
 
 def render() -> None:
-    step = _sidebar()
-    root = _root()
+    step, root = _sidebar()
 
-    st.title("TCGA-STAD · Expression Structure Explorer")
+    st.title("TCGA-STAD · Subgroups of Gene Expression Data")
     st.caption(
-        "Project 1 of 5 · preprocessing → dimensionality reduction → clustering → metadata association"
+        "Project 1 · preprocessing → dimensionality reduction → clustering → metadata association"
     )
+    st.divider()
 
     if step == "Overview":
         render_overview(root)
@@ -122,7 +114,7 @@ def render_overview(root: Path) -> None:
         help="Each stage is kept separate so later biological interpretation cannot leak backward into parameter selection.",
     )
     st.write(
-        "This page is a cache-backed explorer for the first TCGA-STAD mini project. "
+        "This page is a cache-backed gene expression explorer of the TCGA-STAD dataset. "
         "Use the workflow selector in the sidebar to inspect what happened at each stage and "
         "switch among the parameter combinations that were already computed."
     )
@@ -178,38 +170,50 @@ def render_preprocessing(root: Path) -> None:
     cols[4].metric("Dim-red genes", f"{genes.get('dimred_matrix_genes', 0):,}")
 
     st.markdown("#### Canonical preprocessing settings")
-    c1, c2, c3 = st.columns(3)
-    c1.number_input(
-        "Minimum total expression",
-        value=float(config.get("min_total_expression", 200.0)),
-        disabled=True,
-        help=(
-            "Genes with total expression below this threshold across retained primary tumors are removed. "
-            "This suppresses very low-signal genes before log transformation."
+
+    total_expression = float(config.get("min_total_expression", 200.0))
+    min_variance = float(config.get("min_log_variance", 0.7))
+    floor_negative = bool(config.get("floor_negative_expression", True))
+
+    preprocessing_facts = [
+        (
+            "Minimum total expression",
+            f"{total_expression:g} summed RSEM-normalized expression units",
+            "Genes with total expression below this threshold across retained primary tumors were removed. "
+            "This suppresses very low-signal genes before log transformation.",
         ),
-    )
-    c2.number_input(
-        "Minimum log2 variance",
-        value=float(config.get("min_log_variance", 0.7)),
-        disabled=True,
-        help=(
-            "After log2(x+1), genes must exceed this sample-variance threshold to enter X_dimred. "
-            "The goal is to focus geometry on genes that actually vary across tumors."
+        (
+            "Negative expression handling",
+            "Floored at zero" if floor_negative else "Not floored",
+            "Small negative values in the normalized-expression source were set to zero before log2(x+1). "
+            "This prevents negative inputs from creating problems for the log transform.",
         ),
-    )
-    c3.checkbox(
-        "Floor negative expression at zero",
-        value=bool(config.get("floor_negative_expression", True)),
-        disabled=True,
-        help=(
-            "Small negative values in the normalized expression source are set to zero before log2(x+1). "
-            "This prevents invalid/biologically awkward negative inputs to the log transform."
+        (
+            "Expression transformation",
+            "log2(x + 1)",
+            "The log transformation compresses the large expression range and reduces right-skew while "
+            "remaining defined for zero-valued expression.",
         ),
-    )
-    st.caption(
-        "These preprocessing controls are read-only in the cache-first app. Changing them would create a new "
-        "X_dimred and invalidate every downstream cached embedding, cluster solution, and association test."
-    )
+        (
+            "Minimum log2 variance",
+            f"{min_variance:g}",
+            "After log2(x+1), genes had to exceed this sample-variance threshold to enter X_dimred. "
+            "This focuses the embedding on genes that vary across tumors.",
+        ),
+        (
+            "Final scaling",
+            "Gene-wise z-score standardization",
+            "Each retained gene was centered and scaled across samples so genes with larger numerical ranges "
+            "would not dominate the downstream distance geometry solely because of scale.",
+        ),
+    ]
+
+    for label, value, explanation in preprocessing_facts:
+        label_col, value_col, info_col = st.columns([2.4, 2.2, 0.35], vertical_alignment="center")
+        label_col.markdown(f"**{label}**")
+        value_col.write(value)
+        with info_col.popover("ⓘ"):
+            st.write(explanation)
 
     st.markdown("#### Filtering audit")
     audit_table = pd.DataFrame(
@@ -257,11 +261,13 @@ def render_dimensionality_reduction(root: Path) -> None:
         ),
     )
     metadata = sample_info(root)
+    method_options = list(METHOD_NAMES)
     method_key = st.selectbox(
         "Method",
-        list(METHOD_NAMES),
+        method_options,
+        index=method_options.index("pca") if "pca" in method_options else 0,
+        key="p1_dimred_method",
         format_func=lambda x: METHOD_NAMES[x],
-        key="dimred_method",
         help="All four methods consume the same canonical X_dimred matrix in the primary comparison.",
     )
 
@@ -340,19 +346,28 @@ def render_tsne(root: Path, metadata: pd.DataFrame | None) -> None:
         return
     c1, c2 = st.columns(2)
     metrics = list(dict.fromkeys(diag["metric"].astype(str)))
+    metric_default = "euclidean" if "euclidean" in metrics else metrics[0]
     metric = c1.selectbox(
-        "Distance metric", metrics,
+        "Distance metric",
+        metrics,
+        index=metrics.index(metric_default),
+        key="p1_tsne_metric",
         help="Defines similarity in the original high-dimensional gene-expression space before t-SNE constructs local neighborhoods.",
     )
     available = diag.loc[diag["metric"].astype(str).eq(metric)]
     perplexities = sorted(available["perplexity"].astype(float).unique())
-    default_idx = perplexities.index(30.0) if 30.0 in perplexities else 0
+    perplexity_default = 30.0 if 30.0 in perplexities else perplexities[0]
     perplexity = c2.selectbox(
-        "Perplexity", perplexities, index=default_idx,
+        "Perplexity",
+        perplexities,
+        index=perplexities.index(perplexity_default),
+        key="p1_tsne_perplexity",
         help="Controls the effective neighborhood scale. Smaller values emphasize more local structure; larger values consider broader neighborhoods.",
     )
     selected = available.loc[available["perplexity"].astype(float).eq(float(perplexity))].iloc[0]
-    config_id = f"tsne__metric-{metric}__perplexity-{f'{float(perplexity):g}'.replace('.', 'p')}"
+    config_id = str(selected.get("configuration_id", ""))
+    if not config_id:
+        config_id = f"tsne__metric-{metric}__perplexity-{f'{float(perplexity):g}'.replace('.', 'p')}"
     plot_df = embedding_coordinates(root, "tsne", config_id)
     if plot_df is None or plot_df.empty:
         # Backward-compatible filtering if IDs differ in a historical cache.
@@ -387,20 +402,33 @@ def render_umap(root: Path, metadata: pd.DataFrame | None) -> None:
         st.warning("Updated UMAP sensitivity cache not found.")
         return
     c1, c2, c3 = st.columns(3)
+    metrics = list(dict.fromkeys(diag["metric"].astype(str)))
+    metric_default = "euclidean" if "euclidean" in metrics else metrics[0]
     metric = c1.selectbox(
-        "Distance metric", list(dict.fromkeys(diag["metric"].astype(str))),
+        "Distance metric",
+        metrics,
+        index=metrics.index(metric_default),
+        key="p1_umap_metric",
         help="Defines high-dimensional sample distance before the UMAP neighborhood graph is constructed.",
     )
     d1 = diag.loc[diag["metric"].astype(str).eq(metric)]
     neighbors = sorted(d1["n_neighbors"].astype(int).unique())
+    nn_default = 15 if 15 in neighbors else neighbors[0]
     nn = c2.selectbox(
-        "n_neighbors", neighbors, index=neighbors.index(15) if 15 in neighbors else 0,
+        "n_neighbors",
+        neighbors,
+        index=neighbors.index(nn_default),
+        key="p1_umap_n_neighbors",
         help="Controls how local versus global the UMAP neighborhood graph is. Smaller values focus more strongly on local neighborhoods.",
     )
     d2 = d1.loc[d1["n_neighbors"].astype(int).eq(int(nn))]
     min_dists = sorted(d2["min_dist"].astype(float).unique())
+    md_default = 0.1 if 0.1 in min_dists else min_dists[0]
     md = c3.selectbox(
-        "min_dist", min_dists, index=min_dists.index(0.1) if 0.1 in min_dists else 0,
+        "min_dist",
+        min_dists,
+        index=min_dists.index(md_default),
+        key="p1_umap_min_dist",
         help="Controls how tightly UMAP is allowed to pack nearby points in the displayed embedding.",
     )
     selected = d2.loc[d2["min_dist"].astype(float).eq(float(md))].iloc[0]
@@ -436,29 +464,65 @@ def render_umap(root: Path, metadata: pd.DataFrame | None) -> None:
         )
 
 
-def _configuration_selector(root: Path, key_prefix: str) -> tuple[pd.Series, pd.DataFrame] | tuple[None, None]:
-    manifest = configuration_manifest(root)
+def _configuration_selector_from_manifest(
+    manifest: pd.DataFrame,
+    key_prefix: str,
+) -> pd.Series | None:
+    """Select one cached embedding configuration for the current workflow step."""
+
     if manifest is None or manifest.empty:
-        st.warning("Embedding configuration manifest is missing. Run the updated clustering.py first.")
-        return None, None
+        st.warning("Embedding configuration manifest is missing.")
+        return None
+
+    method_options = list(dict.fromkeys(manifest["method_key"].astype(str)))
+    default_method = "pca" if "pca" in method_options else method_options[0]
+
     c1, c2 = st.columns([1, 2])
     method_key = c1.selectbox(
-        "Embedding method", list(dict.fromkeys(manifest["method_key"].astype(str))),
-        format_func=lambda x: METHOD_NAMES.get(x, x), key=f"{key_prefix}_method",
+        "Embedding method",
+        method_options,
+        index=method_options.index(default_method),
+        key=f"p1_{key_prefix}_method",
+        format_func=lambda x: METHOD_NAMES.get(x, x),
     )
+
     subset = manifest.loc[manifest["method_key"].astype(str).eq(method_key)].copy()
+    if subset.empty:
+        st.warning(f"No cached configurations found for {METHOD_NAMES.get(method_key, method_key)}.")
+        return None
+
     labels = {
         str(row.configuration_id): (
             f"{'★ ' if bool(truthy(pd.Series([row.is_primary])).iloc[0]) else ''}{row.configuration_label}"
         )
         for row in subset.itertuples(index=False)
     }
+    config_options = list(labels)
+    primary_ids = [
+        str(row.configuration_id)
+        for row in subset.itertuples(index=False)
+        if bool(truthy(pd.Series([row.is_primary])).iloc[0])
+    ]
+    default_config = primary_ids[0] if primary_ids else config_options[0]
+
     config_id = c2.selectbox(
-        "Embedding configuration", list(labels), format_func=lambda x: labels[x], key=f"{key_prefix}_config",
+        "Embedding configuration",
+        config_options,
+        index=config_options.index(default_config),
+        key=f"p1_{key_prefix}_config",
+        format_func=lambda x: labels[x],
         help="★ marks the canonical primary configuration. All other entries are cached sensitivity analyses.",
     )
-    row = subset.loc[subset["configuration_id"].astype(str).eq(config_id)].iloc[0]
-    return row, manifest
+
+    return subset.loc[subset["configuration_id"].astype(str).eq(config_id)].iloc[0]
+
+def _configuration_selector(root: Path, key_prefix: str) -> tuple[pd.Series, pd.DataFrame] | tuple[None, None]:
+    manifest = configuration_manifest(root)
+    if manifest is None or manifest.empty:
+        st.warning("Embedding configuration manifest is missing. Run the updated clustering.py first.")
+        return None, None
+    row = _configuration_selector_from_manifest(manifest, key_prefix)
+    return (row, manifest) if row is not None else (None, None)
 
 
 def render_clustering(root: Path) -> None:
@@ -476,7 +540,6 @@ def render_clustering(root: Path) -> None:
         return
     config_id = str(config_row["configuration_id"])
     method_key = str(config_row["method_key"])
-    _config_badge(config_row)
 
     diag = maybe_tsv(root, "analysis/clustering/kmeans_diagnostics.tsv")
     assignments = maybe_tsv(root, "analysis/clustering/kmeans_assignments_long.tsv.gz")
@@ -485,12 +548,20 @@ def render_clustering(root: Path) -> None:
     best_row = best.loc[best["configuration_id"].astype(str).eq(config_id)].iloc[0]
     best_k = int(best_row["k"])
     ks = d["k"].astype(int).tolist()
-    k = st.select_slider(
-        "Number of clusters (k)", options=ks, value=best_k,
-        help="The cached grid contains every tested k. The recommended/default k is the one with the maximum silhouette score for this embedding configuration.",
+    st.caption(f"Best-by-silhouette for this configuration is k={best_k}.")
+    k = st.number_input(
+        "Number of clusters (k)",
+        min_value=min(ks),
+        max_value=max(ks),
+        value=best_k,
+        width=150,
+        step=1,
+        help=(
+            "The cached grid contains every tested k. "
+            "The recommended/default k is the one with the maximum "
+            "silhouette score for this embedding configuration."
+        ),
     )
-    if int(k) != best_k:
-        st.caption(f"Sensitivity view: selected k={k}. Best-by-silhouette for this configuration is k={best_k}.")
     selected_diag = d.loc[d["k"].astype(int).eq(int(k))].iloc[0]
     cols = st.columns(5)
     for col, name, label in zip(
@@ -542,18 +613,11 @@ def render_metadata(root: Path) -> None:
     if manifest is None or manifest.empty:
         manifest = assoc.drop_duplicates("configuration_id")
 
-    c1, c2 = st.columns([1, 2])
-    method_key = c1.selectbox(
-        "Embedding method", list(dict.fromkeys(manifest["method_key"].astype(str))),
-        format_func=lambda x: METHOD_NAMES.get(x, x), key="meta_method",
-    )
-    m = manifest.loc[manifest["method_key"].astype(str).eq(method_key)].copy()
-    labels = {
-        str(r.configuration_id): f"{'★ ' if bool(truthy(pd.Series([r.is_primary])).iloc[0]) else ''}{r.configuration_label}"
-        for r in m.itertuples(index=False)
-    }
-    config_id = c2.selectbox("Embedding configuration", list(labels), format_func=lambda x: labels[x], key="meta_config")
-    config_row = m.loc[m["configuration_id"].astype(str).eq(config_id)].iloc[0]
+    config_row = _configuration_selector_from_manifest(manifest, "meta")
+    if config_row is None:
+        return
+    method_key = str(config_row["method_key"])
+    config_id = str(config_row["configuration_id"])
     _config_badge(config_row)
 
     subset = assoc.loc[assoc["configuration_id"].astype(str).eq(config_id)].copy()
