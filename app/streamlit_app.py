@@ -10,6 +10,7 @@ from projects import (
     project5,
 )
 
+from styles import CUSTOM_CSS
 
 st.set_page_config(
     page_title="TCGA-STAD Explorer",
@@ -18,30 +19,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown(
-    """
-    <style>
-    .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 3rem;
-        max-width: 1500px;
-    }
-    [data-testid="stMetric"] {
-        border: 1px solid rgba(128, 128, 128, .18);
-        padding: .8rem;
-        border-radius: .7rem;
-    }
-    .small-note {
-        opacity: .72;
-        font-size: .9rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True,)
 
 pages = {
-    "TCGA-STAD mini projects": [
+    "TCGA-STAD Projects": [
         st.Page(
             project1_expression_structure.render,
             title="1 · Gene Expression Subgroups",
@@ -80,7 +61,7 @@ page = st.navigation(pages, position="sidebar")
 page.run()
 
 with st.sidebar:
-    st.divider()
+    st.space("large")
 
     st.caption("Connect")
 

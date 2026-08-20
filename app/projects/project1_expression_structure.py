@@ -19,6 +19,7 @@ from utils.data import (
     truthy,
 )
 
+from styles import PLOT_TITLE_COLOR, H4_WEIGHT, PLOT_TITLE_SIZE
 
 STEPS = (
     "Overview",
@@ -30,11 +31,24 @@ STEPS = (
 
 METHOD_NAMES = {"pca": "PCA", "mds": "MDS", "tsne": "t-SNE", "umap": "UMAP"}
 
+METADATA_DEFINITIONS="""
+- **tss_code:** Tissue source site code
+- **center_code:** Sequencing/characterization center code
+- **age_at_pathological_diagnosis:** Age (in years) when diagnosed with stomach adenocarcinoma
+- **ajcc_pathological_tumor_stage:** Stage of cancer indicated by physical examination, imaging, and surgery
+- **histological_type:** Diagnosis of disease based on type of tissue, location, etc. based on microscopic examination
+- **histological_grade:** Degree of abnormality or differentiation of tumor cells based on microscopic examination
+- **tumor_status:** condition/state of tumor at particular time
+- **vital_status:** State of patient being alive or deceased upon time of investigation
+- **DSS:** Disease-specific survival. 1 if the patient eventually passed from stomach adenocarcinoma
+- **DFI:** Disease-free interval event. 1 if the patient has a new tumor event (local recurrence, distant metastasis, new primary tumor)
+- **PFI:** Progression-free interval event. 1 if the patient has a new tumor event.
+"""
+
 
 def _sidebar() -> tuple[str, Path]:
     """Render Project 1 workflow navigation and use the launch directory as root."""
 
-    st.sidebar.caption("Project 1")
     step = st.sidebar.radio(
         "Workflow step",
         STEPS,
@@ -73,17 +87,15 @@ def _config_badge(row: pd.Series | None) -> None:
 def _metadata_color_control(metadata: pd.DataFrame | None, key: str) -> str | None:
     if metadata is None:
         return None
-    excluded = {"patient_id", "sample_id"}
+    excluded = {"patient_id", "sample_id", "sample_type_code", "type", "OS", "OS.time", "DSS.time", "DFI.time", "PFI.time", "Redaction"}
     options = ["None"] + [c for c in metadata.columns if c not in excluded]
     chosen = st.selectbox(
         "Color points by",
         options,
         key=key,
-        help=(
-            "Overlay a technical or clinical metadata variable without changing the embedding. "
-            "This is visualization only; it does not tune dimensionality reduction."
-        ),
+        help=METADATA_DEFINITIONS,
     )
+    st.space("small")
     return None if chosen == "None" else chosen
 
 
@@ -110,13 +122,13 @@ def render() -> None:
 
 def render_overview(root: Path) -> None:
     st.subheader(
-        "Analysis workflow",
-        help="Each stage is kept separate so later biological interpretation cannot leak backward into parameter selection.",
+        "Overview",
     )
-    st.write(
-        "This page is a cache-backed gene expression explorer of the TCGA-STAD dataset. "
-        "Use the workflow selector in the sidebar to inspect what happened at each stage and "
-        "switch among the parameter combinations that were already computed."
+    st.write("""
+This exploration is inspired by **_Yang et al. Dimensionality reduction by UMAP reinforces sample heterogeneity analysis in bulk transcriptomic data. Cell Reports (2021)._**
+    
+This page is a cache-backed gene expression explorer of the TCGA-STAD dataset. Use the workflow selector in the sidebar to inspect what happened at each stage and switch among the parameter combinations that were already computed.
+    """
     )
 
     files = {
@@ -128,12 +140,13 @@ def render_overview(root: Path) -> None:
         "Clustering": "analysis/clustering/kmeans_diagnostics.tsv",
         "Metadata association": "analysis/metadata_association/all_associations.tsv",
     }
+
+    st.markdown("#### Cache Health Check:")
     cols = st.columns(4)
     for i, (label, relative) in enumerate(files.items()):
         exists = (root / relative).exists()
-        cols[i % 4].metric(label, "Cached" if exists else "Missing")
+        cols[i % 4].metric(label, "Available" if exists else "Missing")
 
-    st.markdown("#### Design principle")
     st.info(
         "The primary Euclidean/default analyses stay explicitly marked as primary. "
         "Alternative t-SNE/UMAP configurations are available as sensitivity analyses, "
@@ -168,6 +181,7 @@ def render_preprocessing(root: Path) -> None:
     cols[2].metric("Raw genes", f"{raw.get('gene_features', 0):,}")
     cols[3].metric("Expression genes", f"{genes.get('expression_matrix_genes', 0):,}")
     cols[4].metric("Dim-red genes", f"{genes.get('dimred_matrix_genes', 0):,}")
+    st.space("medium")
 
     st.markdown("#### Canonical preprocessing settings")
 
@@ -214,6 +228,7 @@ def render_preprocessing(root: Path) -> None:
         value_col.write(value)
         with info_col.popover("ⓘ"):
             st.write(explanation)
+    st.space("medium")
 
     st.markdown("#### Filtering audit")
     audit_table = pd.DataFrame(
@@ -241,6 +256,7 @@ def render_preprocessing(root: Path) -> None:
             **Gene-wise z-scoring:** prevents high-scale genes from dominating Euclidean geometry simply because of scale.
             """
         )
+    st.space("medium")
 
     if gene_info is not None:
         st.markdown("#### Gene-level preprocessing table")
@@ -271,6 +287,8 @@ def render_dimensionality_reduction(root: Path) -> None:
         help="All four methods consume the same canonical X_dimred matrix in the primary comparison.",
     )
 
+    st.divider()
+
     if method_key == "pca":
         render_pca(root, metadata)
     elif method_key == "mds":
@@ -293,7 +311,13 @@ def render_pca(root: Path, metadata: pd.DataFrame | None) -> None:
     y = c2.selectbox("Y component", pc_cols, index=min(1, len(pc_cols)-1))
     color = _metadata_color_control(metadata, "pca_color")
     data = merge_metadata(coords, metadata)
-    st.altair_chart(charts.scatter(data, x, y, color=color, title=f"PCA: {x} vs {y}"), use_container_width=True)
+    st.altair_chart(charts.scatter(data, x, y, color=color, title=f"{x} vs {y}")
+                        .configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start",
+                    ), use_container_width=True)
 
     if variance is not None:
         selected = variance.loc[variance["component"].isin([x, y])]
@@ -321,7 +345,13 @@ def render_mds(root: Path, metadata: pd.DataFrame | None) -> None:
     data = merge_metadata(coords, metadata)
     x, y = coord_columns("mds", data)
     color = _metadata_color_control(metadata, "mds_color")
-    st.altair_chart(charts.scatter(data, x, y, color=color, title="MDS embedding"), use_container_width=True)
+    st.altair_chart(charts.scatter(data, x, y, color=color, title="MDS embedding")
+                    .configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start", 
+                    ), use_container_width=True)
 
     info = summary.get("mds", {})
     c = st.columns(4)
@@ -376,7 +406,12 @@ def render_tsne(root: Path, metadata: pd.DataFrame | None) -> None:
         ].copy()
     data = merge_metadata(plot_df, metadata)
     color = _metadata_color_control(metadata, "tsne_color")
-    st.altair_chart(charts.scatter(data, "tSNE1", "tSNE2", color=color, title=f"t-SNE · {metric} · perplexity={perplexity:g}"), use_container_width=True)
+    st.altair_chart(charts.scatter(data, "tSNE1", "tSNE2", color=color, title=f"t-SNE · {metric} · perplexity={perplexity:g}").configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start"
+                        ), use_container_width=True)
     cols = st.columns(5)
     for col, name, label in zip(
         cols,
@@ -401,6 +436,7 @@ def render_umap(root: Path, metadata: pd.DataFrame | None) -> None:
     if diag is None or coords is None:
         st.warning("Updated UMAP sensitivity cache not found.")
         return
+    
     c1, c2, c3 = st.columns(3)
     metrics = list(dict.fromkeys(diag["metric"].astype(str)))
     metric_default = "euclidean" if "euclidean" in metrics else metrics[0]
@@ -444,7 +480,12 @@ def render_umap(root: Path, metadata: pd.DataFrame | None) -> None:
         ].copy()
     data = merge_metadata(plot_df, metadata)
     color = _metadata_color_control(metadata, "umap_color")
-    st.altair_chart(charts.scatter(data, "UMAP1", "UMAP2", color=color, title=f"UMAP · {metric} · n_neighbors={nn} · min_dist={md:g}"), use_container_width=True)
+    st.altair_chart(charts.scatter(data, "UMAP1", "UMAP2", color=color, title=f"UMAP · {metric} · n_neighbors={nn} · min_dist={md:g}").configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start"
+                        ), use_container_width=True)
     cols = st.columns(4)
     for col, name, label in zip(
         cols,
@@ -453,15 +494,6 @@ def render_umap(root: Path, metadata: pd.DataFrame | None) -> None:
     ):
         col.metric(label, safe_numeric(selected.get(name)))
     _config_badge(selected)
-    with st.popover("ⓘ UMAP parameters & diagnostics"):
-        st.markdown(
-            """
-            **Metric** determines original-space distance.  
-            **n_neighbors** controls how local the learned manifold is.  
-            **min_dist** controls visual packing in the low-dimensional embedding.  
-            The neighborhood diagnostics are metric-aware, so comparisons across metrics should be interpreted as sensitivity analyses rather than a single universal leaderboard.
-            """
-        )
 
 
 def _configuration_selector_from_manifest(
@@ -554,7 +586,7 @@ def render_clustering(root: Path) -> None:
         min_value=min(ks),
         max_value=max(ks),
         value=best_k,
-        width=150,
+        width="stretch",
         step=1,
         help=(
             "The cached grid contains every tested k. "
@@ -562,6 +594,7 @@ def render_clustering(root: Path) -> None:
             "silhouette score for this embedding configuration."
         ),
     )
+    st.space("small")
     selected_diag = d.loc[d["k"].astype(int).eq(int(k))].iloc[0]
     cols = st.columns(5)
     for col, name, label in zip(
@@ -570,9 +603,17 @@ def render_clustering(root: Path) -> None:
         ["Silhouette", "Calinski–Harabasz", "Davies–Bouldin", "Smallest cluster", "Largest cluster"],
     ):
         col.metric(label, safe_numeric(selected_diag.get(name), 3 if "size" not in name else 0))
+    st.space("small")
 
-    st.altair_chart(charts.line(d, "k", "silhouette", title="Silhouette across k", highlight_x=best_k), use_container_width=True)
+    st.altair_chart(charts.line(d, "k", "silhouette", title="Silhouette across k", highlight_x=best_k)
+                    .configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start"
+                        ), use_container_width=True)
 
+    st.space("small")
     labels = assignments.loc[
         assignments["configuration_id"].astype(str).eq(config_id) & assignments["k"].astype(int).eq(int(k)),
         ["sample_id", "cluster"],
@@ -582,7 +623,12 @@ def render_clustering(root: Path) -> None:
         x, y = coord_columns(method_key, coords)
         plot_df = coords.merge(labels, on="sample_id", how="inner", validate="one_to_one")
         plot_df["cluster"] = plot_df["cluster"].astype(str)
-        st.altair_chart(charts.scatter(plot_df, x, y, color="cluster", title=f"{METHOD_NAMES.get(method_key, method_key)} · K-means k={k}", tooltip_extra=["cluster"]), use_container_width=True)
+        st.altair_chart(charts.scatter(plot_df, x, y, color="cluster", title=f"{METHOD_NAMES.get(method_key, method_key)} · K-means k={k}", tooltip_extra=["cluster"]).configure_title(
+                        fontSize=PLOT_TITLE_SIZE,
+                        color=PLOT_TITLE_COLOR,
+                        fontWeight=H4_WEIGHT,
+                        anchor="start"
+                        ), use_container_width=True)
 
     with st.popover("ⓘ Why silhouette selects k"):
         st.write(
@@ -620,24 +666,27 @@ def render_metadata(root: Path) -> None:
     config_id = str(config_row["configuration_id"])
     _config_badge(config_row)
 
+    st.space("small")
+    c = st.columns(2)
     subset = assoc.loc[assoc["configuration_id"].astype(str).eq(config_id)].copy()
     families = [f for f in ["categorical", "continuous"] if f in set(subset["family"].astype(str))]
-    family = st.radio(
+    family = c[0].radio(
         "Metadata type", families, horizontal=True,
         help="Categorical variables use Fisher/chi-square-style independence tests; continuous variables use Kruskal–Wallis.",
     )
     family_df = subset.loc[subset["family"].astype(str).eq(family)]
-    variable = st.selectbox("Metadata variable", sorted(family_df["variable"].astype(str).unique()))
+    variable = c[1].selectbox("Metadata variable", sorted(family_df["variable"].astype(str).unique()), help=METADATA_DEFINITIONS)
     row = family_df.loc[family_df["variable"].astype(str).eq(variable)].iloc[0]
 
-    c = st.columns(6)
+    st.space("small")
+    st.metric("Test", str(row.get("test", "—")))
+    c = st.columns(5)
     c[0].metric("Best k", int(row.get("k")) if pd.notna(row.get("k")) else "—")
-    c[1].metric("Test", str(row.get("test", "—")))
-    c[2].metric("p-value", safe_numeric(row.get("p_value"), 4))
-    c[3].metric("q (scope)", safe_numeric(row.get("q_value_scope"), 4))
+    c[1].metric("p-value", safe_numeric(row.get("p_value"), 4))
+    c[2].metric("q (scope)", safe_numeric(row.get("q_value_scope"), 4))
     effect_name = "Cramér's V" if family == "categorical" else "ε²"
-    c[4].metric(effect_name, safe_numeric(row.get("effect_size"), 3))
-    c[5].metric("N", int(row.get("n")) if pd.notna(row.get("n")) else "—")
+    c[3].metric(effect_name, safe_numeric(row.get("effect_size"), 3))
+    c[4].metric("N", int(row.get("n")) if pd.notna(row.get("n")) else "—")
 
     q = row.get("q_value_scope")
     if pd.notna(q):
@@ -646,20 +695,33 @@ def render_metadata(root: Path) -> None:
         else:
             st.info("This association does not pass the within-scope BH FDR threshold (q < 0.05).")
 
+    st.space("small")
     if family == "categorical" and enrichment is not None and not enrichment.empty:
         e = enrichment.loc[
             enrichment["configuration_id"].astype(str).eq(config_id)
             & enrichment["variable"].astype(str).eq(variable)
         ].copy()
         if not e.empty:
-            st.altair_chart(charts.categorical_enrichment_bars(e), use_container_width=True)
+            st.altair_chart(charts.categorical_enrichment_bars(e).properties(
+                title="Cluster Composition").configure_title(
+                                        fontSize=PLOT_TITLE_SIZE,
+                                        color=PLOT_TITLE_COLOR,
+                                        fontWeight=H4_WEIGHT,
+                                        anchor="start",
+                                    ), use_container_width=True)
             st.dataframe(e, hide_index=True, use_container_width=True, height=340)
     elif family == "continuous" and assignment_meta is not None and variable in assignment_meta.columns:
         d = assignment_meta.loc[assignment_meta["configuration_id"].astype(str).eq(config_id), ["cluster", variable]].copy()
         d[variable] = pd.to_numeric(d[variable], errors="coerce")
         d = d.dropna()
         if not d.empty:
-            st.altair_chart(charts.continuous_boxplot(d, variable), use_container_width=True)
+            st.altair_chart(charts.continuous_boxplot(d, variable).properties(
+                title="Cluster Composition").configure_title(
+                                        fontSize=PLOT_TITLE_SIZE,
+                                        color=PLOT_TITLE_COLOR,
+                                        fontWeight=H4_WEIGHT,
+                                        anchor="start",
+                                    ), use_container_width=True)
         if continuous_summary is not None and not continuous_summary.empty:
             s = continuous_summary.loc[
                 continuous_summary["configuration_id"].astype(str).eq(config_id)

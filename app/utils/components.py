@@ -21,7 +21,3 @@ def coming_soon(project_number: int, *, subtitle: str | None = None) -> None:
     if subtitle:
         st.caption(subtitle)
     st.info("Coming soon.", icon="🚧")
-    st.write(
-        "This page is reserved for a future TCGA-STAD mini project. "
-        "It will share the same site-level navigation and visual language as Project 1."
-    )
