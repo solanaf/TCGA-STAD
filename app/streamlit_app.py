@@ -31,7 +31,7 @@ pages = {
         ),
         st.Page(
             project2.render,
-            title="2 · Coming soon",
+            title="2 · Mutational Cancer Driver Genes",
             icon="🧪",
             url_path="project-2",
         ),
